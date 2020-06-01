@@ -16,11 +16,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.acme.practice.model.dto.CountryDTO;
+import org.acme.practice.model.dto.CountryMetaInfoDTO;
 import org.acme.practice.model.dto.CurrencyDTO;
 import org.acme.practice.model.dto.SearchDTO;
 import org.acme.practice.model.entity.Country;
+import org.acme.practice.model.entity.CountryMetaInfo;
 import org.acme.practice.model.mapper.CountryMapper;
 import org.acme.practice.model.mapper.CurrencyMapper;
+import org.acme.practice.repository.CountryMetaInfoRepository;
 import org.acme.practice.repository.CountryRepository;
 import org.acme.practice.service.CountriesService;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -32,6 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.quarkus.panache.common.Sort;
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
 
 @Path("/country")
 public class CountriesResource {
@@ -46,6 +51,9 @@ public class CountriesResource {
     
     @Inject
     private CountryMapper countryMapper;
+
+    @Inject
+    private CountryMetaInfoRepository countryMetaRepo;
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -67,6 +75,16 @@ public class CountriesResource {
             return Response.status(Status.ACCEPTED).entity(countryRepository.listAll(Sort.by("name"))).build();
         }
         return Response.status(Status.ACCEPTED).entity(countryRepository.findCountryByName(name)).build();
+    }
+
+    @GET
+    @Path("/cur")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<Long> getCurrencies(){
+        return countryService.getListOfCountriesByCurrency("usd")
+        .onItem().apply((val) -> new CountryMetaInfo(val.getRegion(), val.getPopulation(), val.getFlag()))
+        .toUni()
+        .onItem().produceUni((meta) -> countryMetaRepo.save(meta));
     }
 
     @POST
